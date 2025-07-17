@@ -56,6 +56,10 @@ resource "aws_eks_cluster" "this" {
     }
   }
 
+  upgrade_policy {
+    support_type = var.support_type
+  }
+
   tags = merge(
     { terraform-aws-modules = "eks" },
     var.tags

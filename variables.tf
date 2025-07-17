@@ -20,6 +20,13 @@ variable "enabled_cluster_log_types" {
     default     = []
 }
 
+variable "support_type" {
+  description = "Support type to use for the cluster. If the cluster is set to EXTENDED, it will enter extended support at the end of standard support. If the cluster is set to STANDARD, it will be automatically upgraded at the end of standard support."
+  type        = string
+  default     = "STANDARD"
+}
+
+
 ################
 ## Networking ##
 ################

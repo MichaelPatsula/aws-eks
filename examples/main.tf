@@ -20,7 +20,7 @@ data "aws_availability_zones" "this" {
 ##########
 
 module vpc {
-    source = "../../aws-vpc"
+    source = "git::ssh://git@github.com/MichaelPatsula/aws-vpc.git"
     name                    = "gen-canary-cc-00"
     cidr_blocks             = ["172.26.0.0/16", "172.27.0.0/16"]
     availability_zones      = [data.aws_availability_zones.this.zone_ids[0], data.aws_availability_zones.this.zone_ids[1]]
