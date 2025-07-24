@@ -76,6 +76,26 @@ variable "use_latest_ami_release_version" {
 #     })
 # }
 
+variable "instance_market_options" {
+    description = "The market (purchasing) option for the instance"
+    type = object({
+            martket_type = optional(string, "spot")
+            spot_options = object({
+                block_duration_minutes         = string
+                instance_interruption_behavior = optional(string)
+                max_price                      = string
+                spot_instance_type             = string
+                valid_until                    = string
+            })
+        })
+    default = null    
+}
+
+variable "bootstrap_extra_args" {
+    description = ""
+    type        = string
+}
+
 ###############
 ##  VM Type  ##    
 ###############
@@ -134,9 +154,9 @@ variable "taints" {
 
 variable "timeouts" {
     type = object({
-        create = optional(number)
-        update = optional(number)
-        delete = optional(number)
+        create = optional(string, "15m")
+        update = optional(string, "15m")
+        delete = optional(string, "15m")
     })
     default = null
 }

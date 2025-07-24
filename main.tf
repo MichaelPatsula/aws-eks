@@ -370,6 +370,9 @@ module "managed_node_group" {
   ssh_access         = each.value.ssh_access
   enable_node_repair = each.value.enable_node_repair
 
+  instance_market_options = each.value.instance_market_options
+  bootstrap_extra_args    = each.value.bootstrap_extra_args
+
   labels = each.value.labels
   taints = each.value.taints
 }

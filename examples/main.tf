@@ -60,9 +60,9 @@ module "eks_cluster" {
   source  = "../"
 
   name            = "gen-canary-cc-00"
-  cluster_version = "1.31"
+  cluster_version = "1.32"
 
-  subnet_ids = module.vpc.subnet_id_map["control-plane"]    #[module.vpc.subnets["control-plane-az1"].id, module.vpc.subnets["control-plane-az2"].id]
+  subnet_ids = module.vpc.subnet_id_map["control-plane"]
 
   cluster_addons = {
     eks-pod-identity-agent = {}
@@ -75,14 +75,20 @@ module "eks_cluster" {
 
   node_groups = {
     system = {
-      ami_type       = "AL2_x86_64"
-      instance_types = ["t3.medium"]
-      subnet_ids     = module.vpc.subnet_id_map["node-pools"]  #[module.vpc.subnets["node-pools-az1"].id, module.vpc.subnets["node-pools-az2"].id]
+      ami_type       = "BOTTLEROCKET_x86_64"
+      instance_types = ["t3.small"]
+      subnet_ids     = module.vpc.subnet_id_map["node-pools"]
 
       scaling = {
         min_size     = 1
         max_size     = 2
       }
+      bootstrap_extra_args = <<-EOT
+        # The admin host container provides SSH access and runs with "superpowers".
+        # It is disabled by default, but can be disabled explicitly.
+        [settings.kubernetes]
+        max-pods = 110
+      EOT
     }
   }
 }

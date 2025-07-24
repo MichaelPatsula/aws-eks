@@ -38,14 +38,10 @@ resource "aws_eks_node_group" "this" {
   # ✅ Add custom user data (e.g., shell scripts to run at boot)
   # ✅ Attach additional ENIs or IAM instance profiles 
   # ✅ Configure detailed monitoring, CPU options, etc.
-#   dynamic "launch_template" {
-#     for_each = var.use_custom_launch_template ? [1] : []
-
-#     content {
-#       id      = local.launch_template_id
-#       version = local.launch_template_version
-#     }
-#   }
+  launch_template {
+    id      = aws_launch_template.this.id
+    version = try(aws_launch_template.this.default_version, "$Default")
+  }
 
   // Allows you to SSH into the EC2 instances (nodes) created by the node group. 
   // It configures how access to the worker nodes is set up using SSH keys and optionally restricts access by source IP ranges
@@ -91,7 +87,7 @@ resource "aws_eks_node_group" "this" {
   }
 
   lifecycle {
-    create_before_destroy = true
+    #create_before_destroy = true
     ignore_changes = [
       scaling_config[0].desired_size,
     ]

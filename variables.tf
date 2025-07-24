@@ -164,6 +164,18 @@ variable "node_groups" {
             max_unavailable            = optional(number)
         }))
 
+        instance_market_options = optional(object({
+            martket_type = optional(string, "spot")
+            spot_options = object({
+                block_duration_minutes         = string
+                instance_interruption_behavior = optional(string)
+                max_price                      = string
+                spot_instance_type             = string
+                valid_until                    = string
+            })
+        }))
+        bootstrap_extra_args = optional(string)
+
         labels = optional(map(string))
         taints = optional(list(object({
             key    = string
