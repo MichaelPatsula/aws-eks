@@ -3,6 +3,8 @@
 ###################
 
 resource "aws_launch_template" "this" {
+  count = var.bootstrap_extra_args != null ? 1 : 0
+
   name        = "${var.cluster_name}-${var.name}-eks-node-group"
   description = "Launch template for ${var.name} node group within ${var.cluster_name} cluster"
 
