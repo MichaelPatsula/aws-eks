@@ -250,7 +250,7 @@ locals {
 }
 
 resource "aws_eks_addon" "this" {
-  for_each = { for k, v in var.cluster_addons : k => v if !try(v.before_compute, false) }
+  for_each = { for k, v in var.cluster_addons : k => v } #if !try(v.before_compute, false)
 
   cluster_name = aws_eks_cluster.this.id
   addon_name   = each.key
@@ -280,46 +280,46 @@ resource "aws_eks_addon" "this" {
     delete = try(var.timeouts.delete, null)
   }
 
-  depends_on = [
-    module.managed_node_group,
-  ]
+  # depends_on = [
+  #   module.managed_node_group,
+  # ]
 
   tags = merge(var.tags, try(each.value.tags, {}))
 }
 
-resource "aws_eks_addon" "before_compute" {
-  for_each = { for k, v in var.cluster_addons : k => v if try(v.before_compute, false) }
+# resource "aws_eks_addon" "before_compute" {
+#   for_each = { for k, v in var.cluster_addons : k => v if try(v.before_compute, false) }
 
-  cluster_name = aws_eks_cluster.this.id
-  addon_name   = each.key
+#   cluster_name = aws_eks_cluster.this.id
+#   addon_name   = each.key
 
-  addon_version        = coalesce(try(each.value.addon_version, null), data.aws_eks_addon_version.this[each.key].version)
-  configuration_values = each.value.configuration_values
+#   addon_version        = coalesce(try(each.value.addon_version, null), data.aws_eks_addon_version.this[each.key].version)
+#   configuration_values = each.value.configuration_values
 
-  dynamic "pod_identity_association" {
-    for_each = each.value.pod_identity_association != null ? ["pod_identity_association"] : []
+#   dynamic "pod_identity_association" {
+#     for_each = each.value.pod_identity_association != null ? ["pod_identity_association"] : []
 
-    content {
-      role_arn        = pod_identity_association.value.role_arn
-      service_account = pod_identity_association.value.service_account
-    }
-  }
+#     content {
+#       role_arn        = pod_identity_association.value.role_arn
+#       service_account = pod_identity_association.value.service_account
+#     }
+#   }
 
-  preserve = each.value.preserve
+#   preserve = each.value.preserve
 
-  # TODO - Set to `NONE` on next breaking change when default addons are disabled
-  resolve_conflicts_on_create = try(each.value.resolve_conflicts_on_create, local.resolve_conflicts_on_create_default)
-  resolve_conflicts_on_update = try(each.value.resolve_conflicts_on_update, "OVERWRITE")
-  service_account_role_arn    = each.value.service_account_role_arn
+#   # TODO - Set to `NONE` on next breaking change when default addons are disabled
+#   resolve_conflicts_on_create = try(each.value.resolve_conflicts_on_create, local.resolve_conflicts_on_create_default)
+#   resolve_conflicts_on_update = try(each.value.resolve_conflicts_on_update, "OVERWRITE")
+#   service_account_role_arn    = each.value.service_account_role_arn
 
-  timeouts {
-    create = try(var.timeouts.create, null)
-    update = try(var.timeouts.update, null)
-    delete = try(var.timeouts.delete, null)
-  }
+#   timeouts {
+#     create = try(var.timeouts.create, null)
+#     update = try(var.timeouts.update, null)
+#     delete = try(var.timeouts.delete, null)
+#   }
 
-  tags = merge(var.tags, try(each.value.tags, {}))
-}
+#   tags = merge(var.tags, try(each.value.tags, {}))
+# }
 
 ########################
 ## EKS Encryption Key ##
