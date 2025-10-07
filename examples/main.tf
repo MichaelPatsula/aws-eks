@@ -56,24 +56,32 @@ module vpc {
     }
 }
 
+locals {
+  create_node_group = true
+}
+
 module "eks_cluster" {
   source  = "../"
 
   name            = "gen-canary-cc-00"
-  cluster_version = "1.32"
+  cluster_version = "1.33"
 
   subnet_ids = module.vpc.subnet_id_map["control-plane"]
+  vpc_id     = module.vpc.vpc.id
 
-  cluster_addons = {
+  bootstrap_self_managed_addons = false
+  cluster_addons = local.create_node_group ? {
     eks-pod-identity-agent = {}
-  }
+    coredns                = {}
+    kube-proxy             = {}
+  } : {}
 
   api_server = {
     endpoint_private_access = false
     endpoint_public_access  = true
   }
 
-  node_groups = {
+  node_groups = local.create_node_group ? {
     system = {
       ami_type       = "BOTTLEROCKET_x86_64"
       instance_types = ["t3.small"]
@@ -90,6 +98,6 @@ module "eks_cluster" {
         max-pods = 110
       EOT
     }
-  }
+  } : {}
 }
 

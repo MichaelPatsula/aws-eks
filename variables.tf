@@ -36,10 +36,36 @@ variable "subnet_ids" {
     type        = list(string)
 }
 
-variable "security_group_ids" {
+variable "vpc_id" {
+    description = "The VPC used for the security group"
+    type        = string
+}
+
+variable "security_groups" {
     description = "List of security group IDs for the cross-account elastic network interfaces that Amazon EKS creates to use to allow communication between your worker nodes and the Kubernetes control plane."
-    type        = list(string)
-    default     = null
+    type        = object({
+      use_custom_security_group             = optional(bool, true)
+      additional_cluster_security_group_ids = optional(map(object({
+        description                   = string
+        protocol                      = string
+        from_port                     = string
+        to_port                       = string
+        type                          = string # ingress or egress
+        source_cluster_security_group = bool
+      })))
+      additional_node_security_group_ids= optional(map(object({
+        description                   = string
+        protocol                      = string
+        from_port                     = string
+        to_port                       = string
+        type                          = string # ingress or egress
+        source_cluster_security_group = bool
+      })))
+    })
+    default = {
+      additional_cluster_security_group_ids = {}
+      additional_node_security_group_ids    = {}
+    }
 }
 
 variable "api_server" {

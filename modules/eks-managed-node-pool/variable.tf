@@ -13,6 +13,12 @@ variable "subnet_ids" {
     type        = list(string)
 }
 
+variable "security_group_ids" {
+    description = "The security groups to configure on the Launch Template, which will be used for the managed node group."
+    type        = list(string)
+    default     = []
+}
+
 variable "node_group_version" {
     description = "Kubernetes version. Defaults to EKS Cluster Kubernetes version"
     type        = number

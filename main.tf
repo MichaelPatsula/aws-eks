@@ -26,7 +26,7 @@ resource "aws_eks_cluster" "this" {
 
   vpc_config {
     subnet_ids              = var.subnet_ids
-    security_group_ids      = var.security_group_ids
+    security_group_ids      = var.security_groups.use_custom_security_group ? [aws_security_group.cluster.id] : null
     
     # Whether the Amazon EKS private API server endpoint is enabled.
     endpoint_private_access = var.api_server.endpoint_private_access
@@ -250,7 +250,7 @@ locals {
 }
 
 resource "aws_eks_addon" "this" {
-  for_each = { for k, v in var.cluster_addons : k => v } #if !try(v.before_compute, false)
+  for_each = { for k, v in var.cluster_addons : k => v if !try(v.before_compute, false) }
 
   cluster_name = aws_eks_cluster.this.id
   addon_name   = each.key
@@ -353,10 +353,11 @@ module "managed_node_group" {
   name         = each.key
   cluster_name = aws_eks_cluster.this.id
 
-  instance_types = each.value.instance_types
-  capacity_type  = each.value.capacity_type
-  disk_size      = each.value.disk_size
-  subnet_ids     = each.value.subnet_ids
+  instance_types     = each.value.instance_types
+  capacity_type      = each.value.capacity_type
+  disk_size          = each.value.disk_size
+  subnet_ids         = each.value.subnet_ids
+  security_group_ids = [aws_security_group.node.id]
 
   ami_type                       = each.value.ami_type
   ami_release_version            = each.value.ami_release_version
