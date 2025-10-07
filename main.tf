@@ -280,9 +280,9 @@ resource "aws_eks_addon" "this" {
     delete = try(var.timeouts.delete, null)
   }
 
-  # depends_on = [
-  #   module.managed_node_group,
-  # ]
+  depends_on = [
+    module.managed_node_group,
+  ]
 
   tags = merge(var.tags, try(each.value.tags, {}))
 }
