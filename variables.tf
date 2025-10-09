@@ -153,6 +153,7 @@ variable "cluster_addons" {
 
     before_compute = optional(bool, false)
   }))
+  default = {}
 }
 
 #################
@@ -183,6 +184,7 @@ variable "node_groups" {
             ssh_key           = string
             security_group_id = optional(string) 
         }))
+        iam_role_additional_policies = optional(map(string))
 
         enable_node_repair = optional(bool)
         update_config = optional(object({

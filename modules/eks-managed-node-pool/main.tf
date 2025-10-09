@@ -38,13 +38,9 @@ resource "aws_eks_node_group" "this" {
   # ✅ Add custom user data (e.g., shell scripts to run at boot)
   # ✅ Attach additional ENIs or IAM instance profiles 
   # ✅ Configure detailed monitoring, CPU options, etc.
-  dynamic launch_template {
-    for_each = var.bootstrap_extra_args != null ? ["launch"] : []
-
-    content {
-      id      = aws_launch_template.this[0].id
-      version = try(aws_launch_template.this[0].default_version, "$Default")
-    }
+  launch_template {
+    id      = aws_launch_template.this.id
+    version = try(aws_launch_template.this.default_version, "$Default")
   }
 
   // Allows you to SSH into the EC2 instances (nodes) created by the node group. 
@@ -130,11 +126,11 @@ resource "aws_iam_role" "this" {
 }
 
 resource "aws_iam_role_policy_attachment" "this" {
-  for_each = { for k, v in {
-    AmazonEKSWorkerNodePolicy          = "arn:${data.aws_partition.this.partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy",
-    AmazonEKS_CNI_Policy               = "arn:${data.aws_partition.this.partition}:iam::aws:policy/AmazonEKS_CNI_Policy",
-    AmazonEC2ContainerRegistryReadOnly = "arn:${data.aws_partition.this.partition}:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  } : k => v }
+  for_each = { for k, v in merge({
+    AmazonEKSWorkerNodePolicy          = "arn:${data.aws_partition.this.partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy",           # Allows worker nodes (EC2 instances in a node group) to interact with the EKS control plane (register)
+    AmazonEKS_CNI_Policy               = "arn:${data.aws_partition.this.partition}:iam::aws:policy/AmazonEKS_CNI_Policy",                # Allows nodes to run the Amazon VPC CNI plugin and manage ENIs/IP addresses for pods.
+    AmazonEC2ContainerRegistryReadOnly = "arn:${data.aws_partition.this.partition}:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"   # Allows nodes to pull container images from Amazon ECR (Elastic Container Registry).
+  }, var.iam_role_additional_policies)  : k => v }
 
   role       = aws_iam_role.this.name
   policy_arn = each.value

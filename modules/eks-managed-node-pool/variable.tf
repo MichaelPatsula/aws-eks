@@ -13,6 +13,24 @@ variable "subnet_ids" {
     type        = list(string)
 }
 
+variable "vpc_id" {
+    description = "The VPC used for the security group"
+    type        = string
+}
+
+variable "custom_security_group_ids" {
+    description = "The security groups to configure on the Launch Template, which will be used for the managed node group."
+    type        = map(object({
+        type                     = string
+        description              = string
+        protocol                 = string
+        from_port                = number
+        to_port                  = number
+        source_security_group_id = string
+    }))
+    default = {}
+}
+
 variable "security_group_ids" {
     description = "The security groups to configure on the Launch Template, which will be used for the managed node group."
     type        = list(string)
@@ -136,6 +154,12 @@ variable "ssh_access" {
         security_group_ids = optional(list(string))
     })
     default = null
+}
+
+variable "iam_role_additional_policies" {
+    description = "Add additional policies to the role attached to the nodes"
+    type        = map(string)
+    default     = {}
 }
 
 #############

@@ -74,12 +74,6 @@ resource "aws_eks_cluster" "this" {
   depends_on = [
     aws_iam_role_policy_attachment.this,
   ]
-
-  lifecycle {
-    ignore_changes = [
-      access_config[0].bootstrap_cluster_creator_admin_permissions
-    ]
-  }
 }
 
 ##############
@@ -89,7 +83,7 @@ resource "aws_eks_cluster" "this" {
 ## Standard ##
 
 resource "aws_iam_role" "this" {
-  name = "eks-cluster-role"
+  name = "${var.name}-eks-cluster-role"
   path        = "/"
   description = "EKS managed node group IAM role"  
 
@@ -165,6 +159,9 @@ resource "aws_iam_policy" "cluster_encryption" {
 locals {
   partition = try(data.aws_partition.this.partition, "")
 
+  # AmazonEKSClusterAdminPolicy: equivalent to the cluster-admin built-in Kubernetes Role-Based Access Control (RBAC) ClusterRole
+  # It grants "star" permissions (* for all resources and all verbs/actions) across the entire cluster,
+  # allowing the principal to perform any action on any resource.
   bootstrap_cluster_creator_admin_permissions = {
     cluster_creator = {
       principal_arn = try(data.aws_iam_session_context.this.issuer_arn, "")
@@ -228,7 +225,7 @@ resource "aws_eks_access_policy_association" "this" {
 
   cluster_name = aws_eks_cluster.this.id
   principal_arn = each.value.principal_arn
-  policy_arn    = each.value.association_policy_arn             # ex: AmazonEKSAdminPolicy ref: https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html
+  policy_arn    = each.value.association_policy_arn              # ex: AmazonEKSAdminPolicy ref: https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html
   
   access_scope {
     type       = each.value.association_access_scope_type        # namespace or cluster
@@ -287,39 +284,39 @@ resource "aws_eks_addon" "this" {
   tags = merge(var.tags, try(each.value.tags, {}))
 }
 
-# resource "aws_eks_addon" "before_compute" {
-#   for_each = { for k, v in var.cluster_addons : k => v if try(v.before_compute, false) }
+resource "aws_eks_addon" "before_compute" {
+  for_each = { for k, v in var.cluster_addons : k => v if try(v.before_compute, false) }
 
-#   cluster_name = aws_eks_cluster.this.id
-#   addon_name   = each.key
+  cluster_name = aws_eks_cluster.this.id
+  addon_name   = each.key
 
-#   addon_version        = coalesce(try(each.value.addon_version, null), data.aws_eks_addon_version.this[each.key].version)
-#   configuration_values = each.value.configuration_values
+  addon_version        = coalesce(try(each.value.addon_version, null), data.aws_eks_addon_version.this[each.key].version)
+  configuration_values = each.value.configuration_values
 
-#   dynamic "pod_identity_association" {
-#     for_each = each.value.pod_identity_association != null ? ["pod_identity_association"] : []
+  dynamic "pod_identity_association" {
+    for_each = each.value.pod_identity_association != null ? ["pod_identity_association"] : []
 
-#     content {
-#       role_arn        = pod_identity_association.value.role_arn
-#       service_account = pod_identity_association.value.service_account
-#     }
-#   }
+    content {
+      role_arn        = pod_identity_association.value.role_arn
+      service_account = pod_identity_association.value.service_account
+    }
+  }
 
-#   preserve = each.value.preserve
+  preserve = each.value.preserve
 
-#   # TODO - Set to `NONE` on next breaking change when default addons are disabled
-#   resolve_conflicts_on_create = try(each.value.resolve_conflicts_on_create, local.resolve_conflicts_on_create_default)
-#   resolve_conflicts_on_update = try(each.value.resolve_conflicts_on_update, "OVERWRITE")
-#   service_account_role_arn    = each.value.service_account_role_arn
+  # TODO - Set to `NONE` on next breaking change when default addons are disabled
+  resolve_conflicts_on_create = try(each.value.resolve_conflicts_on_create, local.resolve_conflicts_on_create_default)
+  resolve_conflicts_on_update = try(each.value.resolve_conflicts_on_update, "OVERWRITE")
+  service_account_role_arn    = each.value.service_account_role_arn
 
-#   timeouts {
-#     create = try(var.timeouts.create, null)
-#     update = try(var.timeouts.update, null)
-#     delete = try(var.timeouts.delete, null)
-#   }
+  timeouts {
+    create = try(var.timeouts.create, null)
+    update = try(var.timeouts.update, null)
+    delete = try(var.timeouts.delete, null)
+  }
 
-#   tags = merge(var.tags, try(each.value.tags, {}))
-# }
+  tags = merge(var.tags, try(each.value.tags, {}))
+}
 
 ########################
 ## EKS Encryption Key ##
@@ -346,17 +343,29 @@ module "kms_encryption_key" {
 ## Node Groups ##
 #################
 
+resource "time_sleep" "this" {
+  create_duration = "30s"
+
+  triggers = {
+    cluster_name         = aws_eks_cluster.this.id
+    cluster_endpoint     = aws_eks_cluster.this.endpoint
+    cluster_version      = aws_eks_cluster.this.version
+    cluster_certificate_authority_data = aws_eks_cluster.this.certificate_authority[0].data
+  }
+}
+
 module "managed_node_group" {
   for_each = var.node_groups
   source = "./modules/eks-managed-node-pool"
 
   name         = each.key
-  cluster_name = aws_eks_cluster.this.id
+  cluster_name = time_sleep.this.triggers["cluster_name"] #aws_eks_cluster.this.id
 
   instance_types     = each.value.instance_types
   capacity_type      = each.value.capacity_type
   disk_size          = each.value.disk_size
   subnet_ids         = each.value.subnet_ids
+  vpc_id             = var.vpc_id
   security_group_ids = [aws_security_group.node.id]
 
   ami_type                       = each.value.ami_type
@@ -366,10 +375,11 @@ module "managed_node_group" {
   node_group_version   = each.value.version
   force_update_version = each.value.force_update_version
 
-  scaling            = each.value.scaling
-  update_config      = each.value.update_config
-  ssh_access         = each.value.ssh_access
-  enable_node_repair = each.value.enable_node_repair
+  scaling                      = each.value.scaling
+  update_config                = each.value.update_config
+  ssh_access                   = each.value.ssh_access
+  iam_role_additional_policies = each.value.iam_role_additional_policies
+  enable_node_repair           = each.value.enable_node_repair
 
   instance_market_options = each.value.instance_market_options
   bootstrap_extra_args    = each.value.bootstrap_extra_args
@@ -377,3 +387,47 @@ module "managed_node_group" {
   labels = each.value.labels
   taints = each.value.taints
 }
+
+
+
+######
+
+
+# provider "aws" {
+#   region = "us-east-1"
+# }
+
+# data "aws_eks_cluster" "this" {
+#   name = "your-eks-cluster-name"
+# }
+
+# data "aws_eks_cluster_auth" "this" {
+#   name = data.aws_eks_cluster.this.name
+# }
+
+# provider "helm" {
+#   kubernetes {
+#     host                   = data.aws_eks_cluster.this.endpoint
+#     cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+#     token                  = data.aws_eks_cluster_auth.this.token
+#   }
+# }
+
+# resource "helm_release" "cilium" {
+#   name       = "cilium"
+#   namespace  = "kube-system"
+#   repository = "https://helm.cilium.io/"
+#   chart      = "cilium"
+#   version    = "1.16.1" # change if needed
+
+#   values = [
+#     <<-EOT
+#     ipam:
+#       mode: eni
+
+#     eni:
+#       enabled: true
+#       awsEnablePrefixDelegation: true
+#     EOT
+#   ]
+# }

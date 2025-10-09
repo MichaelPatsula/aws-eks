@@ -3,13 +3,13 @@
 ###################
 
 resource "aws_launch_template" "this" {
-  count = var.bootstrap_extra_args != null ? 1 : 0
+  #count = var.bootstrap_extra_args != null ? 1 : 0
 
   name        = "${var.cluster_name}-${var.name}-eks-node-group"
   description = "Launch template for ${var.name} node group within ${var.cluster_name} cluster"
 
   image_id               = null
-  vpc_security_group_ids = var.security_group_ids
+  vpc_security_group_ids = concat(var.security_group_ids, [aws_security_group.custom.id])
   update_default_version = true
 
   dynamic "instance_market_options" {

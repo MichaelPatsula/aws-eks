@@ -98,14 +98,14 @@ locals {
 }
 
 resource "aws_security_group" "node" {
-  name_prefix = "${var.name}-nsg-node-"
+  name_prefix = "${var.name}-nsg-node-generic-"
   description = "Secures communication for individual worker nodes (EC2 instances)."
   vpc_id      = var.vpc_id
 
   tags = merge(
     var.tags,
     {
-      "Name"                                               = "${var.name}-nsg-node"
+      "Name"                                               = "${var.name}-nsg-node-generic"
       "kubernetes.io/cluster/${aws_eks_cluster.this.name}" = "owned"
     }
   )

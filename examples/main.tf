@@ -56,6 +56,14 @@ module vpc {
     }
 }
 
+module "vpc_flow_logs" {
+    source = "../../terraform-aws-vpc-flow-logs"
+
+    name                 = "gen-canary-cc-00"
+    vpc_id               = module.vpc.vpc.id
+    log_destination_type = "cloud-watch-logs"
+}
+
 locals {
   create_node_group = true
 }
@@ -72,8 +80,11 @@ module "eks_cluster" {
   bootstrap_self_managed_addons = false
   cluster_addons = local.create_node_group ? {
     eks-pod-identity-agent = {}
-    coredns                = {}
-    kube-proxy             = {}
+    coredns    = {}
+    kube-proxy = {}
+    # vpc-cni = {
+    #   before_compute = true
+    # }    
   } : {}
 
   api_server = {
@@ -83,7 +94,7 @@ module "eks_cluster" {
 
   node_groups = local.create_node_group ? {
     system = {
-      ami_type       = "BOTTLEROCKET_x86_64"
+      ami_type       = "AL2023_x86_64_STANDARD" #"BOTTLEROCKET_x86_64"
       instance_types = ["t3.small"]
       subnet_ids     = module.vpc.subnet_id_map["node-pools"]
 
@@ -91,12 +102,21 @@ module "eks_cluster" {
         min_size     = 1
         max_size     = 2
       }
-      bootstrap_extra_args = <<-EOT
-        # The admin host container provides SSH access and runs with "superpowers".
-        # It is disabled by default, but can be disabled explicitly.
-        [settings.kubernetes]
-        max-pods = 110
-      EOT
+      # bootstrap_extra_args = <<-EOT
+      #   # The admin host container provides SSH access and runs with "superpowers".
+      #   # It is disabled by default, but can be disabled explicitly.
+      #   [settings.kubernetes]
+      #   max-pods = 110
+
+      #   # https://bottlerocket.dev/en/os/1.44.x/api/settings/pki/
+      #   # [settings.pki.my-trusted-bundle]
+      #   # data="W3N..."
+      #   # trusted=true
+      # EOT
+
+      iam_role_additional_policies = {
+        SSM = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      }
     }
   } : {}
 }
